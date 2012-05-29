@@ -53,6 +53,7 @@ class opt_parser(optparse.OptionParser):
 		self.ctx = ctx
 
 		jobs = ctx.jobs()
+		p('-c', '--color',    dest='colors',  default='auto', action='store', help='whether to use colors (always/auto/never) [default: auto]')
 		p('-j', '--jobs',     dest='jobs',    default=jobs, type='int', help='amount of parallel jobs (%r)' % jobs)
 		p('-k', '--keep',     dest='keep',    default=0,     action='count', help='keep running happily even if errors are found')
 		p('-v', '--verbose',  dest='verbose', default=0,     action='count', help='verbosity level -v -vv or -vvv [default: 0]')
@@ -244,6 +245,14 @@ class OptionsContext(Context.Context):
 
 		if options.verbose >= 1:
 			self.load('errcheck')
+
+		try:
+			use_colors = {'always' : 2, 'auto' : 1, 'never' : 0}[options.colors]
+			if os.environ.get('NOCOLOR', 'no') not in ('no', '0', 'false'):
+				use_colors = 0
+			Logs.set_use_colors(use_colors)
+		except KeyError:
+			self.parser.error('Bad option "%s" for --color option' % options.colors)
 
 	def execute(self):
 		"""

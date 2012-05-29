@@ -6,7 +6,7 @@
 logging, colors, terminal width and pretty-print
 """
 
-import os, re, traceback, sys
+import os, re, traceback, sys, types
 
 _nocolor = os.environ.get('NOCOLOR', 'no') not in ('no', '0', 'false')
 try:
@@ -53,6 +53,10 @@ else:
 
 import logging # import other modules only after
 
+INFO = logging.INFO
+WARNING = logging.WARNING
+ERROR = logging.ERROR
+
 LOG_FORMAT = "%(asctime)s %(c1)s%(zone)s%(c2)s %(message)s"
 HOUR_FORMAT = "%H:%M:%S"
 
@@ -60,7 +64,6 @@ zones = ''
 verbose = 0
 
 colors_lst = {
-'USE' : True,
 'BOLD'  :'\x1b[01;1m',
 'RED'   :'\x1b[01;31m',
 'GREEN' :'\x1b[32m',
@@ -71,17 +74,30 @@ colors_lst = {
 'NORMAL':'\x1b[0m',
 'cursor_on'  :'\x1b[?25h',
 'cursor_off' :'\x1b[?25l',
+'erase_cur_eol' : '\x1b[K',
+'cr' : '\r',
 }
 
 got_tty = not os.environ.get('TERM', 'dumb') in ['dumb', 'emacs']
 if got_tty:
 	try:
-		got_tty = sys.stderr.isatty() and sys.stdout.isatty()
+		got_tty = sys.stderr.isatty() or sys.stdout.isatty()
 	except AttributeError:
 		got_tty = False
 
-if (not got_tty and os.environ.get('TERM', 'dumb') != 'msys') or _nocolor:
-	colors_lst['USE'] = False
+def set_use_colors(use=1):
+	"""
+	Declare whether to use colors
+	"""
+	if not got_tty and os.environ.get('TERM', 'dumb') != 'msys' and use == 1:
+		use = 0
+	if use > 0:
+		try:
+			import waflib.ansiterm
+		except ImportError:
+			pass
+
+	colors.use = use
 
 def get_term_cols():
 	return 80
@@ -98,11 +114,10 @@ else:
 			"""
 			Private use only.
 			"""
-
-			dummy_lines, cols = struct.unpack("HHHH", \
-			fcntl.ioctl(sys.stderr.fileno(),termios.TIOCGWINSZ , \
-			struct.pack("HHHH", 0, 0, 0, 0)))[:2]
-			return cols
+			fds = [ x.fileno() for x in (sys.stderr, sys.stdout) if x.isatty() ]
+			for fd in fds:
+				return struct.unpack("HHHH", fcntl.ioctl(fd,termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0)))[1]
+			raise Exception("Cannot guess terminal columns")
 		# try the function once to see if it really works
 		try:
 			get_term_cols_real()
@@ -118,16 +133,14 @@ get_term_cols.__doc__ = """
 	:rtype: int
 	"""
 
-def get_color(cl):
-	if not colors_lst['USE']: return ''
-	return colors_lst.get(cl, '')
-
 class color_dict(object):
 	"""attribute-based color access, eg: colors.PINK"""
+	def __init__(self, use=0):
+		self.use = use
 	def __getattr__(self, a):
-		return get_color(a)
+		return colors_lst.get(a, '') if self.use > 0 else ''
 	def __call__(self, a):
-		return get_color(a)
+		return colors_lst.get(a, '') if self.use > 0 else ''
 
 colors = color_dict()
 
@@ -156,17 +169,22 @@ class log_filter(logging.Filter):
 
 		:param rec: message to record
 		"""
-
-		rec.c1 = colors.PINK
-		rec.c2 = colors.NORMAL
 		rec.zone = rec.module
-		if rec.levelno >= logging.INFO:
-			if rec.levelno >= logging.ERROR:
+
+		rec.c2 = colors.NORMAL
+
+		try:
+			rec.c1
+		except:
+			rec.c1 = colors.PINK
+			if rec.levelno >= ERROR:
 				rec.c1 = colors.RED
-			elif rec.levelno >= logging.WARNING:
+			elif rec.levelno >= WARNING:
 				rec.c1 = colors.YELLOW
-			else:
+			elif rec.levelno >= INFO:
 				rec.c1 = colors.GREEN
+
+		if rec.levelno >= INFO:
 			return True
 
 		m = re_log.match(rec.msg)
@@ -180,20 +198,69 @@ class log_filter(logging.Filter):
 			return False
 		return True
 
-class formatter(logging.Formatter):
-	"""Simple log formatter which handles colors"""
-	def __init__(self):
-		logging.Formatter.__init__(self, LOG_FORMAT, HOUR_FORMAT)
+class TerminalStreamHandler(logging.StreamHandler):
+	""" stream handler dispatching messages to stdout/stderr based on their level or a flag """
+	def __init__(self, *k, **kw):
+		logging.StreamHandler.__init__(self, *k, **kw)
+	def emit(self, record, **kw):
+		stderr = record.levelno >= WARNING or getattr(record, 'stderr', False)
+		stream = sys.stderr if stderr else sys.stdout
+		try:
+			msg = self.formatter.format(record, tty=stream.isatty())
+			ret = '' if getattr(record, 'noret', False) else '\n'
+			fs = "%s" + ret
+			if not hasattr(types, "UnicodeType"): #if no unicode support...
+				stream.write(fs % msg)
+			else:
+				try:
+					if (isinstance(msg, unicode) and
+						getattr(stream, 'encoding', None)):
+						fs = fs.decode(stream.encoding)
+						try:
+							stream.write(fs % msg)
+						except UnicodeEncodeError:
+							stream.write((fs % msg).encode(stream.encoding))
+					else:
+						stream.write(fs % msg)
+				except UnicodeError:
+					stream.write(fs % msg.encode("UTF-8"))
+			self.flush()
+		except (KeyboardInterrupt, SystemExit):
+			raise
+		except:
+			self.handleError(record)
 
-	def format(self, rec):
-		"""Messages in warning, error or info mode are displayed in color by default"""
-		if rec.levelno >= logging.WARNING or rec.levelno == logging.INFO:
+class TerminalFormatter(logging.Formatter):
+	"""Log formatter which adds colors to important messages, and removes them if not a tty"""
+	def __init__(self, colors=None):
+		logging.Formatter.__init__(self, LOG_FORMAT, HOUR_FORMAT)
+		self.colors = colors
+	def format(self, rec, tty=True):
+		if rec.levelno >= INFO:
 			try:
 				msg = rec.msg.decode('utf-8')
 			except Exception:
 				msg = rec.msg
-			return '%s%s%s' % (rec.c1, msg, rec.c2)
+			msg = '%s%s%s' % (rec.c1, msg, rec.c2)
+			if not tty and getattr(self.colors, 'use', 0) == 1: # costly but unlikely
+				msg = msg.replace('\r', '\n')
+				msg = re.sub(r'\x1B\[(K|.*?(m|h|l))', '', msg)
+			return msg
 		return logging.Formatter.format(self, rec)
+
+class FileFormatter(logging.Formatter):
+	""" Log formatter which prefixes lines with a message level indicator (used to write config.log) """
+	def __init__(self):
+		logging.Formatter.__init__(self, LOG_FORMAT, HOUR_FORMAT)
+	def format(self, rec):
+		msg = str(rec.msg)
+		if rec.levelno < WARNING:
+			mark = '---'
+		elif rec.levelno < ERROR:
+			mark = 'WWW'
+		else:
+			mark = '!!!'
+		return "\n".join(["%s: %s" % (mark, x) for x in msg.split("\n")])
 
 log = None
 """global logger for Logs.debug, Logs.error, etc"""
@@ -247,11 +314,12 @@ def init_log():
 	log = logging.getLogger('waflib')
 	log.handlers = []
 	log.filters = []
-	hdlr = logging.StreamHandler()
-	hdlr.setFormatter(formatter())
+	hdlr = TerminalStreamHandler()
+	hdlr.setFormatter(TerminalFormatter(colors))
 	log.addHandler(hdlr)
 	log.addFilter(log_filter())
 	log.setLevel(logging.DEBUG)
+	log.colors = colors
 
 def make_logger(path, name):
 	"""
@@ -269,10 +337,10 @@ def make_logger(path, name):
 	"""
 	logger = logging.getLogger(name)
 	hdlr = logging.FileHandler(path, 'w')
-	formatter = logging.Formatter('%(message)s')
-	hdlr.setFormatter(formatter)
+	hdlr.setFormatter(FileFormatter())
 	logger.addHandler(hdlr)
 	logger.setLevel(logging.DEBUG)
+	logger.colors = color_dict(use=0)
 	return logger
 
 def make_mem_logger(name, to_log, size=10000):
@@ -287,9 +355,10 @@ def make_mem_logger(name, to_log, size=10000):
 	logger.addHandler(hdlr)
 	logger.memhandler = hdlr
 	logger.setLevel(logging.DEBUG)
+	logger.colors = color_dict(use=0)
 	return logger
 
-def pprint(col, str, label='', sep='\n'):
+def pprint(col, l, label='', sep='\n', error=False):
 	"""
 	Print messages in color immediately on stderr::
 
@@ -305,5 +374,6 @@ def pprint(col, str, label='', sep='\n'):
 	:param sep: a string to append at the end (line separator)
 	:type sep: string
 	"""
-	sys.stderr.write("%s%s%s %s%s" % (colors(col), str, colors.NORMAL, label, sep))
+	cmd = warn if error else info
+	cmd("%s%s%s %s%s" % (colors(col), l, colors.NORMAL, label, sep), extra={'noret': True})
 
