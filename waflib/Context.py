@@ -177,7 +177,17 @@ class Context(ctx):
 
 		self.stack_path = []
 		self.exec_dict = {'ctx':self, 'conf':self, 'bld':self, 'opt':self}
-		self.logger = None
+		self._logger = None
+		def get_logger(self):
+			""" Returns the context logger, if present, or the global one """
+			if self._logger is None:
+				return Logs.log
+			return self._logger
+		
+		def set_logger(self, logger):
+			self._logger = logger
+		
+		Context.logger = property(get_logger, set_logger)
 
 	def __hash__(self):
 		"""
@@ -211,6 +221,7 @@ class Context(ctx):
 		"""
 		global g_module
 		self.recurse([os.path.dirname(g_module.root_path)])
+	
 
 	def pre_recurse(self, node):
 		"""
@@ -316,7 +327,7 @@ class Context(ctx):
 		Logs.debug('runner: %r' % cmd)
 		Logs.debug('runner_env: kw=%s' % kw)
 
-		if self.logger:
+		if self._logger is not None:
 			self.logger.info(cmd)
 
 		if 'stdout' not in kw:
@@ -338,20 +349,11 @@ class Context(ctx):
 		except Exception as e:
 			raise Errors.WafError('Execution failure: %s' % str(e), ex=e)
 
-		if out:
-			if not isinstance(out, str):
-				out = out.decode(sys.stdout.encoding or 'iso8859-1')
-			if self.logger:
-				self.logger.debug('out: %s' % out)
-			else:
-				sys.stdout.write(out)
-		if err:
-			if not isinstance(err, str):
-				err = err.decode(sys.stdout.encoding or 'iso8859-1')
-			if self.logger:
-				self.logger.error('err: %s' % err)
-			else:
-				sys.stderr.write(err)
+		for (m, l) in ((out, Logs.INFO), (err, Logs.WARNING)):
+			if m:
+				if not isinstance(m, str):
+					m = m.decode(sys.stdout.encoding or 'iso8859-1')
+				self.logger.log(l, m, extra={'c1': ''})
 
 		return ret
 
@@ -406,9 +408,9 @@ class Context(ctx):
 			err = err.decode(sys.stdout.encoding or 'iso8859-1')
 
 		if out and quiet != STDOUT and quiet != BOTH:
-			self.to_log('out: %s' % out)
+			self.to_log(out, level=Logs.INFO)
 		if err and quiet != STDERR and quiet != BOTH:
-			self.to_log('err: %s' % err)
+			self.to_log(err, level=Logs.WARNING)
 
 		if p.returncode:
 			e = Errors.WafError('Command %r returned %r' % (cmd, p.returncode))
@@ -435,7 +437,7 @@ class Context(ctx):
 		:param ex: optional exception object
 		:type ex: exception
 		"""
-		if self.logger:
+		if self._logger is not None:
 			self.logger.info('from %s: %s' % (self.path.abspath(), msg))
 		try:
 			msg = '%s\n(complete log in %s)' % (msg, self.logger.handlers[0].baseFilename)
@@ -443,10 +445,10 @@ class Context(ctx):
 			pass
 		raise self.errors.ConfigurationError(msg, ex=ex)
 
-	def to_log(self, msg):
+	def to_log(self, msg, level=Logs.INFO, *args, **kw):
 		"""
-		Log some information to the logger (if present), or to stderr. If the message is empty,
-		it is not printed::
+		Log some information to the logger (if present), or to the console.
+		If the message is empty, it is not printed::
 
 			def build(bld):
 				bld.to_log('starting the build')
@@ -458,12 +460,11 @@ class Context(ctx):
 		"""
 		if not msg:
 			return
-		if self.logger:
-			self.logger.info(msg)
+		if level <= Logs.INFO:
+			cmd = self.logger.info
 		else:
-			sys.stderr.write(str(msg))
-			sys.stderr.flush()
-
+			cmd = self.logger.warn
+		cmd(msg, *args, **kw)
 
 	def msg(self, msg, result, color=None):
 		"""

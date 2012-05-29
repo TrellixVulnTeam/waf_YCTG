@@ -246,7 +246,13 @@ class TaskBase(evil):
 
 	def log_display(self, bld):
 		"Write the execution status on the context logger"
-		bld.to_log(self.display())
+		colors = bld.logger.colors
+		stderr = self.generator.bld.progress_bar > 0
+		c1, c2 = '', ''
+		if stderr:
+			c1 = colors.cursor_off
+			c2 = colors.cursor_on
+		bld.to_log(self.display(), extra={'stderr': stderr, 'noret': True, 'c1': c1, 'c2' : c2})
 
 	def display(self):
 		"""
@@ -254,8 +260,9 @@ class TaskBase(evil):
 
 		:rtype: string
 		"""
-		col1 = Logs.colors(self.color)
-		col2 = Logs.colors.NORMAL
+		colors = self.generator.bld.logger.colors
+		col1 = colors(self.color)
+		col2 = colors.NORMAL
 		master = self.master
 
 		def cur():

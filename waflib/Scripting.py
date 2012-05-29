@@ -120,7 +120,7 @@ def waf_entry_point(current_directory, version, wafdir):
 	try:
 		set_main_module(Context.run_dir + os.sep + Context.WSCRIPT_FILE)
 	except Errors.WafError as e:
-		Logs.pprint('RED', e.verbose_msg)
+		Logs.pprint('RED', e.verbose_msg, error=True)
 		Logs.error(str(e))
 		sys.exit(1)
 	except Exception as e:
@@ -138,7 +138,7 @@ def waf_entry_point(current_directory, version, wafdir):
 		run_commands()
 	except Errors.WafError as e:
 		if Logs.verbose > 1:
-			Logs.pprint('RED', e.verbose_msg)
+			Logs.pprint('RED', e.verbose_msg, error=True)
 		Logs.error(e.msg)
 		sys.exit(1)
 	except SystemExit:
@@ -147,7 +147,7 @@ def waf_entry_point(current_directory, version, wafdir):
 		traceback.print_exc(file=sys.stdout)
 		sys.exit(2)
 	except KeyboardInterrupt:
-		Logs.pprint('RED', 'Interrupted')
+		Logs.pprint('RED', 'Interrupted', error=True)
 		sys.exit(68)
 	#"""
 
@@ -193,7 +193,6 @@ def parse_options():
 
 	# process some internal Waf options
 	Logs.verbose = Options.options.verbose
-	Logs.init_log()
 
 	if Options.options.zones:
 		Logs.zones = Options.options.zones.split(',')
@@ -216,7 +215,11 @@ def run_command(cmd_name):
 	ctx.log_timer = Utils.Timer()
 	ctx.options = Options.options # provided for convenience
 	ctx.cmd = cmd_name
-	ctx.execute()
+	try:
+		ctx.execute()
+	except:
+		Logs.pprint('RED', "Error: %s failed" % cmd_name)
+		raise
 	return ctx
 
 def run_commands():

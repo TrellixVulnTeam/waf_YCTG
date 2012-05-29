@@ -48,7 +48,7 @@ class BuildError(WafError):
 
 	def format_error(self):
 		"""format the error messages from the tasks that failed"""
-		lst = ['Build failed']
+		lst = []
 		for tsk in self.tasks:
 			txt = tsk.format_error()
 			if txt: lst.append(txt)

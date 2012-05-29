@@ -9,7 +9,7 @@ The inheritance tree is the following:
 
 """
 
-import os, sys, errno, re, shutil
+import os, errno, re, shutil
 try:
 	import cPickle
 except ImportError:
@@ -258,21 +258,17 @@ class BuildContext(Context.Context):
 		Logs.info("Waf: Entering directory `%s'" % self.variant_dir)
 		self.recurse([self.run_dir])
 		self.pre_build()
-
 		# display the time elapsed in the progress bar
 		self.timer = Utils.Timer()
 
-		if self.progress_bar:
-			sys.stderr.write(Logs.colors.cursor_off)
+		colors = self.logger.colors
 		try:
 			self.compile()
 		finally:
 			if self.progress_bar == 1:
 				c = len(self.returned_tasks) or 1
-				self.to_log(self.progress_line(c, c, Logs.colors.BLUE, Logs.colors.NORMAL))
-				print('')
-				sys.stdout.flush()
-				sys.stderr.write(Logs.colors.cursor_on)
+				m = "%s%s" % (self.progress_line(c, c, colors.BLUE, colors.NORMAL), colors.cursor_on)
+				self.to_log(m, extra={'stderr':True, 'c1': ''})
 			Logs.info("Waf: Leaving directory `%s'" % self.variant_dir)
 		self.post_build()
 
@@ -521,8 +517,8 @@ class BuildContext(Context.Context):
 		ratio = ((cols*state)//total) - 1
 
 		bar = ('='*ratio+'>').ljust(cols)
-		msg = Utils.indicator % (left, bar, right)
-
+		colors = self.logger.colors
+		msg = "".join((colors.erase_cur_eol, left, bar, right, colors.cr))
 		return msg
 
 	def declare_chain(self, *k, **kw):
