@@ -16,6 +16,7 @@ try:
 
 	sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 	csinfo = CONSOLE_CURSOR_INFO()
+	windll
 except Exception:
 	pass
 else:
