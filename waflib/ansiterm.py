@@ -19,10 +19,6 @@ try:
 
 	sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 	csinfo = CONSOLE_CURSOR_INFO()
-	hconsole = windll.kernel32.GetStdHandle(-11)
-	windll.kernel32.GetConsoleScreenBufferInfo(hconsole, byref(sbinfo))
-	if sbinfo.Size.X < 9 or sbinfo.Size.Y < 9: raise ValueError('small console')
-	windll.kernel32.GetConsoleCursorInfo(hconsole, byref(csinfo))
 except Exception:
 	pass
 else:
@@ -52,7 +48,7 @@ else:
 			self.orig_sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 			self.orig_csinfo = CONSOLE_CURSOR_INFO()
 			windll.kernel32.GetConsoleScreenBufferInfo(self.hconsole, byref(self.orig_sbinfo))
-			windll.kernel32.GetConsoleCursorInfo(hconsole, byref(self.orig_csinfo))
+			windll.kernel32.GetConsoleCursorInfo(self.hconsole, byref(self.orig_csinfo))
 
 		def screen_buffer_info(self):
 			sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
