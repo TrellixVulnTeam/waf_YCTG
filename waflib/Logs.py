@@ -85,15 +85,22 @@ if got_tty:
 	except AttributeError:
 		got_tty = False
 
+def get_term_cols():
+	return 80
+
 def set_use_colors(use=1):
 	"""
 	Declare whether to use colors
 	"""
 	if use > 0:
 		try:
+			global get_term_cols
 			import waflib.ansiterm
 			waflib.ansiterm.setup()
 			colors.use = use
+			for x in (sys.stdout, sys.stderr):
+				if x.isatty():
+					get_term_cols = x.get_columns
 			return
 		except AttributeError:
 			pass # not available
@@ -103,9 +110,6 @@ def set_use_colors(use=1):
 		use = 0
 	
 	colors.use = use
-
-def get_term_cols():
-	return 80
 
 # If console packages are available, replace the dummy function with a real
 # implementation
