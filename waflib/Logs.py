@@ -180,10 +180,13 @@ class log_filter(logging.Filter):
 		"""
 		rec.zone = rec.module
 
-		rec.c2 = colors.NORMAL
+		try:
+			rec.c2 = rec.args['c2']
+		except:
+			rec.c2 = colors.NORMAL
 
 		try:
-			rec.c1
+			rec.c1 = rec.args['c1']
 		except:
 			rec.c1 = colors.PINK
 			if rec.levelno >= ERROR:
