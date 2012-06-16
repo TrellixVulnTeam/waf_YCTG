@@ -1,8 +1,5 @@
 import sys, os
 try:
-	if not (sys.stderr.isatty() and sys.stdout.isatty()):
-		raise ValueError('not a tty')
-
 	from ctypes import *
 
 	class COORD(Structure):
@@ -41,13 +38,15 @@ else:
 		"""
 		emulate a vt100 terminal in cmd.exe
 		"""
-		def __init__(self):
-			self.encoding = sys.stdout.encoding
-			self.hconsole = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+		def __init__(self, s, err=0):
+			self.stream = s
+			self.encoding = s.encoding
+			self.hconsole = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE if not err else STD_ERROR_HANDLE)
 			self.cursor_history = []
 			self.orig_sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 			self.orig_csinfo = CONSOLE_CURSOR_INFO()
-			windll.kernel32.GetConsoleScreenBufferInfo(self.hconsole, byref(self.orig_sbinfo))
+			r = windll.kernel32.GetConsoleScreenBufferInfo(self.hconsole, byref(self.orig_sbinfo))
+			self._isatty = r == 1
 			windll.kernel32.GetConsoleCursorInfo(self.hconsole, byref(self.orig_csinfo))
 
 		def screen_buffer_info(self):
@@ -239,8 +238,11 @@ else:
 			pass
 
 		def isatty(self):
-			return True
-
-	sys.stderr = sys.stdout = AnsiTerm()
-	os.environ['TERM'] = 'vt100'
-
+			return self._isatty
+	
+	def setup():
+		if sys.stderr.isatty():
+			sys.stderr = AnsiTerm(sys.stderr, err=True)
+		if sys.stdout.isatty():
+			sys.stdout = AnsiTerm(sys.stdout)
+		os.environ['TERM'] = 'vt100'
