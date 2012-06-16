@@ -6,25 +6,31 @@
 __author__ = __maintainer__ = "Jérôme Carretero <cJ-waf@zougloub.eu>"
 __copyright__ = "Jérôme Carretero, 2012"
 
+import sys
 from waflib import Logs
 
 class ColorGCCFormatter(Logs.TerminalFormatter):
 	def __init__(self, colors=None):
 		Logs.TerminalFormatter.__init__(self, colors=colors)
 	def format(self, rec, tty=True):
-		if getattr(rec, 'wafclass', None) == 'exec_command':
-			lines = []
-			for line in rec.msg.split('\n'):
-				if 'warning: ' in line:
-					lines.append(self.colors.YELLOW + line)
-				elif 'error: ' in line:
-					lines.append(self.colors.RED + line)
-				elif 'note: ' in line:
-					lines.append(self.colors.CYAN + line)
-				else:
-					lines.append(line)
-
-			rec.msg = "\n".join(lines)
+		frame = sys._getframe()
+		while frame:
+			func = frame.f_code.co_name
+			if func == 'exec_command':
+				cmd = frame.f_locals['cmd']
+				if isinstance(cmd, list) and ('gcc' in cmd[0] or 'g++' in cmd[0]):
+					lines = []
+					for line in rec.msg.split('\n'):
+						if 'warning: ' in line:
+							lines.append(self.colors.YELLOW + line)
+						elif 'error: ' in line:
+							lines.append(self.colors.RED + line)
+						elif 'note: ' in line:
+							lines.append(self.colors.CYAN + line)
+						else:
+							lines.append(line)
+					rec.msg = "\n".join(lines)
+			frame = frame.f_back
 		return Logs.TerminalFormatter.format(self, rec)
 
 def options(opt):

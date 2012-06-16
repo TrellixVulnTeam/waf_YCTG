@@ -147,9 +147,13 @@ class color_dict(object):
 	def __init__(self, use=0):
 		self.use = use
 	def __getattr__(self, a):
-		return colors_lst.get(a, '') if self.use > 0 else ''
+		if self.use > 0:
+			return colors_lst.get(a, '')
+		return ''
 	def __call__(self, a):
-		return colors_lst.get(a, '') if self.use > 0 else ''
+		if self.use > 0:
+			return colors_lst.get(a, '')
+		return ''
 
 colors = color_dict()
 
@@ -215,11 +219,15 @@ class TerminalStreamHandler(logging.StreamHandler):
 	def __init__(self, *k, **kw):
 		logging.StreamHandler.__init__(self, *k, **kw)
 	def emit(self, record, **kw):
-		stderr = record.levelno >= WARNING or getattr(record, 'stderr', False)
-		stream = sys.stderr if stderr else sys.stdout
+		stderr = record.levelno >= WARNING or (isinstance(record.args, dict) and record.args.get('stderr', False))
+		stream = sys.stdout
+		if stderr:
+			stream = sys.stderr
 		try:
 			msg = self.formatter.format(record, tty=stream.isatty())
-			ret = '' if getattr(record, 'noret', False) else '\n'
+			ret = '\n'
+			if isinstance(record.args, dict) and record.args.get('noret', False):
+				ret = ''
 			fs = "%s" + ret
 			if not hasattr(types, "UnicodeType"): #if no unicode support...
 				stream.write(fs % msg)
@@ -386,6 +394,8 @@ def pprint(col, l, label='', sep='\n', error=False):
 	:param sep: a string to append at the end (line separator)
 	:type sep: string
 	"""
-	cmd = warn if error else info
-	cmd("%s%s%s %s%s" % (colors(col), l, colors.NORMAL, label, sep), extra={'noret': True})
+	cmd = info
+	if error:
+		cmd = warn
+	cmd("%s%s%s %s%s" % (colors(col), l, colors.NORMAL, label, sep), {'noret': True})
 

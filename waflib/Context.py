@@ -217,7 +217,9 @@ class Context(ctx):
 	
 	def get_logger(self):
 		""" Returns the context logger, if present, or the global one """
-		return Logs.log if self.logger is None else self.logger
+		if self.logger is None:
+			return Logs.log
+		return self.logger
 
 	def pre_recurse(self, node):
 		"""
@@ -450,8 +452,11 @@ class Context(ctx):
 		"""
 		if not msg:
 			return
-		cmd = self.get_logger().info if level <= Logs.INFO else self.get_logger().warn
-		cmd(msg, extra=extra)
+		if level <= Logs.INFO:
+			cmd = self.get_logger().info
+		else:
+			cmd = self.get_logger().warn
+		cmd(msg, extra)
 
 	def msg(self, msg, result, color=None):
 		"""
