@@ -1,6 +1,24 @@
-import sys, os
+#!/usr/bin/env python
+# encoding: utf-8
+# Thomas Nagy, 2012 (ita)
+
+"""
+Emulate a vt100 terminal in cmd.exe
+
+By wrapping sys.stdout / sys.stderr with Ansiterm,
+the vt100 escape characters will be interpreted and
+the equivalent actions will be performed with Win32
+console commands.
+
+"""
+
+import sys, os, re, threading
+
 try:
-	from ctypes import *
+	from ctypes import Structure, windll, c_short, c_ulong, c_int, byref, c_wchar
+except Exception:
+	pass
+else:
 
 	class COORD(Structure):
 		_fields_ = [("X", c_short), ("Y", c_short)]
@@ -16,11 +34,6 @@ try:
 
 	sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 	csinfo = CONSOLE_CURSOR_INFO()
-	windll
-except Exception:
-	pass
-else:
-	import re, threading
 
 	is_vista = getattr(sys, "getwindowsversion", None) and sys.getwindowsversion()[0] >= 6
 
@@ -37,7 +50,7 @@ else:
 
 	class AnsiTerm(object):
 		"""
-		emulate a vt100 terminal in cmd.exe
+		Stream wrapper
 		"""
 		def __init__(self, s, err=0):
 			self.stream = s
@@ -250,3 +263,4 @@ else:
 		if sys.stdout.isatty():
 			sys.stdout = AnsiTerm(sys.stdout)
 		os.environ['TERM'] = 'vt100'
+
