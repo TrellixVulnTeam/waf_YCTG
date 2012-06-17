@@ -263,7 +263,7 @@ class BuildContext(Context.Context):
 		# display the time elapsed in the progress bar
 		self.timer = Utils.Timer()
 
-		colors = self.get_logger().colors
+		colors = self.logger.colors
 		try:
 			self.compile()
 		finally:
@@ -519,7 +519,7 @@ class BuildContext(Context.Context):
 		ratio = ((cols*state)//total) - 1
 
 		bar = ('='*ratio+'>').ljust(cols)
-		colors = self.get_logger().colors
+		colors = self.logger.colors
 		msg = "".join((colors.erase_cur_eol, left, bar, right, colors.cr))
 		return msg
 

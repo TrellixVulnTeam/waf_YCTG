@@ -180,7 +180,7 @@ class Context(ctx):
 
 		self.stack_path = []
 		self.exec_dict = {'ctx':self, 'conf':self, 'bld':self, 'opt':self}
-		self.logger = None
+		self._logger = None
 
 	def __hash__(self):
 		"""
@@ -217,9 +217,14 @@ class Context(ctx):
 	
 	def get_logger(self):
 		""" Returns the context logger, if present, or the global one """
-		if self.logger is None:
+		if self._logger is None:
 			return Logs.log
-		return self.logger
+		return self._logger
+	
+	def set_logger(self, logger):
+		self._logger = logger
+	
+	logger = property(get_logger, set_logger)
 
 	def pre_recurse(self, node):
 		"""
@@ -325,7 +330,7 @@ class Context(ctx):
 		Logs.debug('runner: %r' % cmd)
 		Logs.debug('runner_env: kw=%s' % kw)
 
-		if self.logger:
+		if self._logger:
 			self.logger.info(cmd)
 
 		if 'stdout' not in kw:
@@ -348,7 +353,7 @@ class Context(ctx):
 			if m:
 				if not isinstance(m, str):
 					m = m.decode(sys.stdout.encoding or 'iso8859-1')
-				self.get_logger().log(l, m, extra={'c1': '', 'wafclass': 'exec_command'})
+				self.logger.log(l, m, {'c1': ''})
 
 		return ret
 
@@ -453,9 +458,9 @@ class Context(ctx):
 		if not msg:
 			return
 		if level <= Logs.INFO:
-			cmd = self.get_logger().info
+			cmd = self.logger.info
 		else:
-			cmd = self.get_logger().warn
+			cmd = self.logger.warn
 		cmd(msg, extra)
 
 	def msg(self, msg, result, color=None):
