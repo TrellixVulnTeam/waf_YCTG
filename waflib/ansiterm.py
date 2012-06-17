@@ -44,15 +44,18 @@ else:
 			self.hconsole = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE if not err else STD_ERROR_HANDLE)
 			self.cursor_history = []
 			self.orig_sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
+			self._sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 			self.orig_csinfo = CONSOLE_CURSOR_INFO()
 			r = windll.kernel32.GetConsoleScreenBufferInfo(self.hconsole, byref(self.orig_sbinfo))
 			self._isatty = r == 1
 			windll.kernel32.GetConsoleCursorInfo(self.hconsole, byref(self.orig_csinfo))
 
 		def screen_buffer_info(self):
-			sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
-			windll.kernel32.GetConsoleScreenBufferInfo(self.hconsole, byref(sbinfo))
-			return sbinfo
+			"""
+			Updates self.cur_sbinfo and returns it
+			"""
+			windll.kernel32.GetConsoleScreenBufferInfo(self.hconsole, byref(self._sbinfo))
+			return self._sbinfo
 
 		def clear_line(self, param):
 			mode = param and int(param) or 0
