@@ -380,7 +380,7 @@ def make_mem_logger(name, to_log, size=10000):
 
 def pprint(col, l, label='', sep='\n', error=False):
 	"""
-	Print messages in color immediately on stderr::
+	Print messages in color using a named color::
 
 		from waflib import Logs
 		Logs.pprint('RED', 'Something bad just happened')
@@ -393,6 +393,8 @@ def pprint(col, l, label='', sep='\n', error=False):
 	:type label: string
 	:param sep: a string to append at the end (line separator)
 	:type sep: string
+	:param error: whether to treat the message as an error (output to stderr), default is no error
+	:type error: bool
 	"""
 	cmd = info
 	if error:
