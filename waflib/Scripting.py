@@ -147,7 +147,7 @@ def waf_entry_point(current_directory, version, wafdir):
 		traceback.print_exc(file=sys.stdout)
 		sys.exit(2)
 	except KeyboardInterrupt:
-		Logs.pprint('RED', 'Interrupted')
+		Logs.pprint('RED', 'Interrupted', error=True)
 		sys.exit(68)
 	#"""
 
