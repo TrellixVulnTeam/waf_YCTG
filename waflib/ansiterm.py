@@ -112,6 +112,10 @@ else:
 			)
 			windll.kernel32.SetConsoleCursorPosition(self.hconsole, new_pos)
 
+		def get_columns(self):
+			sbinfo = self.screen_buffer_info()
+			return sbinfo.Size.X
+		
 		def set_column(self, param):
 			x = to_int(param, 1) - 1
 			sbinfo = self.screen_buffer_info()
