@@ -55,7 +55,10 @@ else:
 		def __init__(self, s, err=0):
 			self.stream = s
 			self.encoding = s.encoding
-			self.hconsole = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE if not err else STD_ERROR_HANDLE)
+			handle = STD_OUTPUT_HANDLE
+			if err:
+				handle = STD_ERROR_HANDLE
+			self.hconsole = windll.kernel32.GetStdHandle(handle)
 			self.cursor_history = []
 			self.orig_sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
 			self._sbinfo = CONSOLE_SCREEN_BUFFER_INFO()
