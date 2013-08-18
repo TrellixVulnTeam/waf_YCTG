@@ -394,6 +394,18 @@ def ex_stack():
 	exc_lines = traceback.format_exception(exc_type, exc_value, tb)
 	return ''.join(exc_lines)
 
+def to_bool(sth):
+	"""
+	Convert a string argument to a boolean or None
+	"""
+	sth = sth.lower()
+	if sth in ('0', 'false', 'no'):
+		return False
+	elif sth in ('1', 'true', 'yes'):
+		return True
+	return None
+
+
 def to_list(sth):
 	"""
 	Convert a string argument to a list by splitting on spaces, and pass
