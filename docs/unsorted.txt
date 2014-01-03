@@ -1,3 +1,4 @@
+== Unsorted docs
 
 - to make a fully static app, replace env.SHLIB_MARKER and env.STLIB_MARKER
 - string expansion on other attributes
@@ -14,3 +15,34 @@
 	ret = conf.check_cc(fragment="""#include<stdio.h>\nint main(){fprintf(stderr, "mu"); printf("%d", 22);return 0;}\n""", features='c cprogram getpath')
 	print ret
 
+=== User Interface
+
+
+==== Development Tests
+
+Output:
+
+[source,sh]
+-----------
+## check the progress bar
+# normal
+waf --color always -vv -p >/dev/null
+# normal
+waf -vv -p >/dev/null
+# multiline (no esc. codes)
+waf --color never -vv -p >/dev/null
+#
+## check the output colors
+# no colors
+waf --color never -vv 2>/dev/null
+# colors
+waf --color always -vv 2>/dev/null
+# colors
+waf -vv 2>/dev/null
+-----------
+
+Other checks:
+
+- NUL vs. log
+- waf warnings and errors on stderr, not stdout
+- 
