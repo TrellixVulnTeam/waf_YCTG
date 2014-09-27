@@ -37,6 +37,11 @@ except ImportError:
 	from UserDict import UserDict
 
 try:
+	from shlex import quote
+except ImportError:
+	from pipes import quote
+
+try:
 	from hashlib import md5
 except ImportError:
 	try:
@@ -705,6 +710,9 @@ def nogc(fun):
 		return ret
 	f.__doc__ = fun.__doc__
 	return f
+
+def list2commandline(lst):
+    return " ".join(quote(x) for x in lst)
 
 def run_once(fun):
 	"""
